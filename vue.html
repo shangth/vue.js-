@@ -16,7 +16,7 @@
         let activeEffect;
 
         // 原始数据
-        const data = { text: 'hello world' };
+        const data = { ok: true, text: 'hello world' };
         // 对原始数据进行代理
         const obj = new Proxy(data, {
             get(target, key) {
@@ -43,6 +43,8 @@
                 depsMap.set(key, (deps = new Set()));
             }
             deps.add(activeEffect);
+            // 副作用函数需要知道，谁的变动会触发它
+            activeEffect.deps.push(deps);
         }
 
         // set时进行调用
@@ -57,23 +59,39 @@
 
 
         function effect(fn) {
-            activeEffect = fn;
-            fn();
+            const effectFn = () => {
+                // 副作用函数执行前，先让自己不依赖任何属性
+                cleanup(effectFn)
+                activeEffect = effectFn;
+                fn();
+            }
+            effectFn.deps = [];
+            effectFn();
         }
+
+        function cleanup(effectFn) {
+            for (let i = 0; i < effectFn.deps.length; i++) {
+                const deps = effectFn.deps[i];
+                deps.delete(effectFn);
+            }
+            effectFn.deps.length = 0;
+        }
+
         effect(() => {
-            document.body.innerText = obj.text;
+            console.log('innerText修改');
+            document.body.innerText = obj.ok ? obj.text : 'not';
         });
+        // 依赖收集完成之后，改变ok为FALSE
+        obj.ok = false;
+        // 这时副作用函数不应该依赖obj.text，可是obj.text改变，副作用函数依然执行
         setTimeout(() => {
             obj.text = '修改啦'
         }, 1000);
 
-        // 通过改变bucket结构，使对象属性&福所用函数对应；并提取track&trigger函数
+        // 副作用函数执行前，先不让自己依赖任何属性，重新收集依赖
 
         // 思考：
-        // 一个副作用函数执行时依赖obj.a；下次执行还依赖它吗？
-        // eg：() => {document.innerHtml = obj.ok ? obj.text : 'not'}
-        // 上面副作用函数是否依赖obj.text取决于obj.ok的值为TRUE还是FALSE，不一定依赖obj.text
-        // 但是此时obj.text对应的Set中已经存在了此副作用函数
+        // deps.forEach时，副作用函数执行，先清除自己的依赖，再执行，自己又重新依赖了obj.ok，就会进入死循环
 
     </script>
 </body>
