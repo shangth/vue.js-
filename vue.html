@@ -10,7 +10,7 @@
     <script>
 
         // 存储副作用函数的桶
-        const bucket = new Set();
+        const bucket = new WeakMap();
 
         // 用一个全局变量存储被注册的副作用函数
         let activeEffect;
@@ -20,14 +20,28 @@
         // 对原始数据进行代理
         const obj = new Proxy(data, {
             get(target, key) {
-                if (activeEffect) {
-                    bucket.add(activeEffect);
+                if (!activeEffect) return target[key];
+                // 寻找备操作的对象的map
+                let depsMap = bucket.get(target);
+                if (!depsMap) {
+                    bucket.set(target, (depsMap = new Map()));
                 }
+                // 寻找该对象下属性的set（副作用函数队列）
+                let deps = depsMap.get(key);
+                if (!deps) {
+                    depsMap.set(key, (deps = new Set()));
+                }
+                deps.add(activeEffect);
                 return target[key];
             },
             set(target, key, newVal) {
                 target[key] = newVal;
-                bucket.forEach(fn => fn());
+                // 拿到对象对应的map
+                const depsMap = bucket.get(target);
+                if (!depsMap) return;
+                // 拿到对象属性对应的副作用函数队列
+                const effects = depsMap.get(key);
+                effects && effects.forEach(fn => fn());
                 return true;
             }
         })
