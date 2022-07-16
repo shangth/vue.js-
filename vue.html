@@ -18,7 +18,7 @@
         const effectStack = [];
 
         // 原始数据
-        const data = { effect1: 1, effect2: 2 };
+        const data = { foo: 1 };
         // 对原始数据进行代理
         const obj = new Proxy(data, {
             get(target, key) {
@@ -57,7 +57,14 @@
             // 拿到对象属性对应的副作用函数队列
             const effects = depsMap.get(key);
 
-            const effectsToRun = new Set(effects);
+            const effectsToRun = new Set();
+            effects && effects.forEach(effectFn => {
+                // effectFn与当前执行的副作用函数不一样才放进去
+                if (effectFn !== activeEffect) {
+                    effectsToRun.add(effectFn);
+                }
+            })
+
             effectsToRun && effectsToRun.forEach(fn => fn());
             // effects && effects.forEach(fn => fn());
         }
@@ -85,29 +92,15 @@
             effectFn.deps.length = 0;
         }
 
-        effect(function effectFn1() {
-            console.log('effect1执行');
-            effect(function effectFn2() {
-                console.log('effect2执行');
-                obj.effect2;
-            })
-            obj.effect1;
+        effect(() => {
+            console.log(123)
+            obj.foo++
         });
 
-        // 此时更改obj.effect1会导致effectFn1的执行，effectFn1包含effectFn2，所以effectFn2也会执行；而effect2的更改只会导致effectFn2的执行
-        // obj.effect1 = 3;
-        // obj.effect2 = 3;
-
-        // 副作用函数执行压入栈，执行完弹出栈，并且更新activeEffect；
+        // 通过effects里的副作用函数与正在执行副作用函数是否一致来判断要不要加入effectsToRun
 
         // 思考：
-        // 如果 obj.foo = 1; effect(() => obj.foo++);会导致无限循环；
-
-        // 执行() => obj.foo++
-            // obj.foo取值（依赖收集）
-            // obj.foo+1
-            // obj.foo赋值（执行副作用函数）    副作用函数还是() => obj.foo++    又读取了obj.foo，又被收集
-        // 结束（永远不会走到这里）
+        // 当数据变化，副作用函数何时执行？我们能不能控制它何时执行？
 
     </script>
 </body>
