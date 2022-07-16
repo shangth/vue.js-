@@ -54,7 +54,10 @@
             if (!depsMap) return;
             // 拿到对象属性对应的副作用函数队列
             const effects = depsMap.get(key);
-            effects && effects.forEach(fn => fn());
+
+            const effectsToRun = new Set(effects);
+            effectsToRun && effectsToRun.forEach(fn => fn());
+            // effects && effects.forEach(fn => fn());
         }
 
 
@@ -88,10 +91,11 @@
             obj.text = '修改啦'
         }, 1000);
 
-        // 副作用函数执行前，先不让自己依赖任何属性，重新收集依赖
+        // set循环前深克隆一份，执行深克隆的那份
 
         // 思考：
-        // deps.forEach时，副作用函数执行，先清除自己的依赖，再执行，自己又重新依赖了obj.ok，就会进入死循环
+        // 副作用函数嵌套问题，如果effect1(some code2   effect2();   some code2);
+        // 在effect2执行完后，activeEffect还是effect2，此时执行some code2，由于activeEffect指向错误，本应该被effect1依赖的变量会收集到effect2中
 
     </script>
 </body>
