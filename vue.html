@@ -12,12 +12,17 @@
         // 存储副作用函数的桶
         const bucket = new Set();
 
+        // 用一个全局变量存储被注册的副作用函数
+        let activeEffect;
+
         // 原始数据
         const data = { text: 'hello world' };
         // 对原始数据进行代理
         const obj = new Proxy(data, {
             get(target, key) {
-                bucket.add(effect);
+                if (activeEffect) {
+                    bucket.add(activeEffect);
+                }
                 return target[key];
             },
             set(target, key, newVal) {
@@ -27,16 +32,22 @@
             }
         })
 
-        function effect() {
-            document.body.innerText = obj.text;
+        function effect(fn) {
+            activeEffect = fn;
+            fn();
         }
-        effect();
+        effect(() => {
+            document.body.innerText = obj.text;
+        });
         setTimeout(() => {
             obj.text = '修改啦'
         }, 1000);
 
+        // 解决了硬编码effect的问题；
+
         // 思考：
-        // 硬编码了函数名“effect”，如果函数换个名字，就没有用了
+        // 现在只要obj下任何属性（包括本来不存在的属性；eg:obj.a）发生改变都会导致副作用函数的重新执行；
+        // 但是其他属性与副作用函数没有任何关系，其他属性的变化不应该导致副作用函数的执行
 
     </script>
 </body>
