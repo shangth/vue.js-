@@ -65,12 +65,15 @@
                 }
             })
 
-            effectsToRun && effectsToRun.forEach(fn => fn());
+            effectsToRun && effectsToRun.forEach(fn => {
+                // 有调度器用调度器，没有就直接执行
+                fn.options.schedular ? fn.options.schedular(fn) : fn();
+            });
             // effects && effects.forEach(fn => fn());
         }
 
 
-        function effect(fn) {
+        function effect(fn, options = {}) {
             const effectFn = () => {
                 // 副作用函数执行前，先让自己不依赖任何属性
                 cleanup(effectFn)
@@ -81,6 +84,8 @@
                 activeEffect = effectStack[effectStack.length - 1];
             }
             effectFn.deps = [];
+            // 调度器等配置存起来
+            effectFn.options = options;
             effectFn();
         }
 
@@ -93,14 +98,20 @@
         }
 
         effect(() => {
-            console.log(123)
-            obj.foo++
+            console.log(obj.foo)
+        }, {
+            schedular(fn) {
+                setTimeout(fn);
+            }
         });
+        obj.foo++;
+        console.log('结束');
 
-        // 通过effects里的副作用函数与正在执行副作用函数是否一致来判断要不要加入effectsToRun
+        // 调度器控制了当属性变化时，effect的执行时机
 
         // 思考：
-        // 当数据变化，副作用函数何时执行？我们能不能控制它何时执行？
+        // 当一个数据多次变化，那么变化几次，effect就会执行几次，可是我们并不关注变化过程，只关心变化结果
+        // 我们希望，只有在属性变化到最终形态执行一次effect即可
 
     </script>
 </body>
