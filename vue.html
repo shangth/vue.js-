@@ -14,9 +14,11 @@
 
         // 用一个全局变量存储被注册的副作用函数
         let activeEffect;
+        // effect栈
+        const effectStack = [];
 
         // 原始数据
-        const data = { ok: true, text: 'hello world' };
+        const data = { effect1: 1, effect2: 2 };
         // 对原始数据进行代理
         const obj = new Proxy(data, {
             get(target, key) {
@@ -66,7 +68,10 @@
                 // 副作用函数执行前，先让自己不依赖任何属性
                 cleanup(effectFn)
                 activeEffect = effectFn;
+                effectStack.push(effectFn);
                 fn();
+                effectStack.pop();
+                activeEffect = effectStack[effectStack.length - 1];
             }
             effectFn.deps = [];
             effectFn();
@@ -80,22 +85,29 @@
             effectFn.deps.length = 0;
         }
 
-        effect(() => {
-            console.log('innerText修改');
-            document.body.innerText = obj.ok ? obj.text : 'not';
+        effect(function effectFn1() {
+            console.log('effect1执行');
+            effect(function effectFn2() {
+                console.log('effect2执行');
+                obj.effect2;
+            })
+            obj.effect1;
         });
-        // 依赖收集完成之后，改变ok为FALSE
-        obj.ok = false;
-        // 这时副作用函数不应该依赖obj.text，可是obj.text改变，副作用函数依然执行
-        setTimeout(() => {
-            obj.text = '修改啦'
-        }, 1000);
 
-        // set循环前深克隆一份，执行深克隆的那份
+        // 此时更改obj.effect1会导致effectFn1的执行，effectFn1包含effectFn2，所以effectFn2也会执行；而effect2的更改只会导致effectFn2的执行
+        // obj.effect1 = 3;
+        // obj.effect2 = 3;
+
+        // 副作用函数执行压入栈，执行完弹出栈，并且更新activeEffect；
 
         // 思考：
-        // 副作用函数嵌套问题，如果effect1(some code2   effect2();   some code2);
-        // 在effect2执行完后，activeEffect还是effect2，此时执行some code2，由于activeEffect指向错误，本应该被effect1依赖的变量会收集到effect2中
+        // 如果 obj.foo = 1; effect(() => obj.foo++);会导致无限循环；
+
+        // 执行() => obj.foo++
+            // obj.foo取值（依赖收集）
+            // obj.foo+1
+            // obj.foo赋值（执行副作用函数）    副作用函数还是() => obj.foo++    又读取了obj.foo，又被收集
+        // 结束（永远不会走到这里）
 
     </script>
 </body>
