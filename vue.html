@@ -97,21 +97,37 @@
             effectFn.deps.length = 0;
         }
 
+        const jobQueue = new Set();
+        const p = Promise.resolve();
+        let isFlushing = false;
+        function flushing() {
+            if (isFlushing) return;
+            isFlushing = true;
+            p.then(() => {
+                jobQueue.forEach(job => job());
+            }).finally(() => {
+                isFlushing = false;
+            })
+        }
+
         effect(() => {
             console.log(obj.foo)
         }, {
             schedular(fn) {
-                setTimeout(fn);
+                jobQueue.add(fn);
+                console.log(jobQueue)
+                flushing();
             }
         });
         obj.foo++;
+        obj.foo++;
+        obj.foo++;
         console.log('结束');
 
-        // 调度器控制了当属性变化时，effect的执行时机
+        // 同步加锁，异步解锁，忽略中间态effect的执行
 
         // 思考：
-        // 当一个数据多次变化，那么变化几次，effect就会执行几次，可是我们并不关注变化过程，只关心变化结果
-        // 我们希望，只有在属性变化到最终形态执行一次effect即可
+        // 响应系统的实现就此结束，下面开始实现计算属性
 
     </script>
 </body>
