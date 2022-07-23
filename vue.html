@@ -122,6 +122,7 @@
                 lazy: true,
                 schedular() {
                     dirty = true;
+                    trigger(obj, 'value');
                 }
             });
             const obj = {
@@ -131,6 +132,7 @@
                         value =  effectFn();
                         dirty = false;
                     }
+                    track(obj, 'value');
                     return value;
                 }
             }
@@ -138,18 +140,19 @@
         }
 
         const sumRes = computed(() => obj.foo + obj.bar);
-        console.log(sumRes.value);
-        console.log(sumRes.value);
-        console.log(sumRes.value);
-        console.log(sumRes.value);
+
+        effect(() => console.log(sumRes.value));
+        obj.foo++;
+        // console.log(bucket);
 
 
 
 
+        // effect(() => console.log(sumRes.value)); 依赖了计算属性
+        // 计算属性依赖了obj.foo  以及  obj.bar;
 
-
-        // 增加computed的value用于缓存结果，dirty用于记录缓存是否过期
-        // 每次计算完后，设置未过期，依赖项发生改变时，设置为已过期
+        // 当obj.foo改变，会触发计算属性schedular的执行，这时，应该再去触发effect(() => console.log(sumRes.value))的执行，但是并没有，因为对计算属性的依赖没有收集，也没有触发
+        // 所以需要增加依赖计算属性时的依赖收集
 
         // 思考：
         // 当在另一个effect中读取计算属性的值时，计算属性的依赖属性发生变化，是否会导致effect的重新执行？
