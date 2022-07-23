@@ -115,30 +115,44 @@
         }
 
         function computed(getter) {
+            let value;
+            let dirty = true;
+
             const effectFn = effect(getter, {
-                lazy: true
+                lazy: true,
+                schedular() {
+                    dirty = true;
+                }
             });
             const obj = {
                 get value() {
-                    console.log('计算结果')
-                    return effectFn();
+                    if (dirty) {
+                        console.log('计算结果');
+                        value =  effectFn();
+                        dirty = false;
+                    }
+                    return value;
                 }
             }
             return obj;
         }
 
         const sumRes = computed(() => obj.foo + obj.bar);
-        console.log(sumRes.value)
-        console.log(sumRes.value)
-        console.log(sumRes.value)
-        console.log(sumRes.value)
+        console.log(sumRes.value);
+        console.log(sumRes.value);
+        console.log(sumRes.value);
+        console.log(sumRes.value);
 
 
 
-        // effect函数不能立刻执行effectFn，而是lazy非true的时候才执行
+
+
+
+        // 增加computed的value用于缓存结果，dirty用于记录缓存是否过期
+        // 每次计算完后，设置未过期，依赖项发生改变时，设置为已过期
 
         // 思考：
-        // 这样每次对sumRes，effectFn都会被重新执行一遍，计算属性应该有缓存
+        // 当在另一个effect中读取计算属性的值时，计算属性的依赖属性发生变化，是否会导致effect的重新执行？
 
     </script>
 </body>
