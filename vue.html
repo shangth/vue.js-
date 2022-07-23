@@ -18,7 +18,7 @@
         const effectStack = [];
 
         // 原始数据
-        const data = { foo: 1 };
+        const data = { foo: 1, bar: 2 };
         // 对原始数据进行代理
         const obj = new Proxy(data, {
             get(target, key) {
@@ -79,14 +79,18 @@
                 cleanup(effectFn)
                 activeEffect = effectFn;
                 effectStack.push(effectFn);
-                fn();
+                const res = fn();
                 effectStack.pop();
                 activeEffect = effectStack[effectStack.length - 1];
+                return res;
             }
             effectFn.deps = [];
             // 调度器等配置存起来
             effectFn.options = options;
-            effectFn();
+            if (!options.lazy) {
+                effectFn();
+            }
+            return effectFn;
         }
 
         function cleanup(effectFn) {
@@ -110,24 +114,31 @@
             })
         }
 
-        effect(() => {
-            console.log(obj.foo)
-        }, {
-            schedular(fn) {
-                jobQueue.add(fn);
-                console.log(jobQueue)
-                flushing();
+        function computed(getter) {
+            const effectFn = effect(getter, {
+                lazy: true
+            });
+            const obj = {
+                get value() {
+                    console.log('计算结果')
+                    return effectFn();
+                }
             }
-        });
-        obj.foo++;
-        obj.foo++;
-        obj.foo++;
-        console.log('结束');
+            return obj;
+        }
 
-        // 同步加锁，异步解锁，忽略中间态effect的执行
+        const sumRes = computed(() => obj.foo + obj.bar);
+        console.log(sumRes.value)
+        console.log(sumRes.value)
+        console.log(sumRes.value)
+        console.log(sumRes.value)
+
+
+
+        // effect函数不能立刻执行effectFn，而是lazy非true的时候才执行
 
         // 思考：
-        // 响应系统的实现就此结束，下面开始实现计算属性
+        // 这样每次对sumRes，effectFn都会被重新执行一遍，计算属性应该有缓存
 
     </script>
 </body>
