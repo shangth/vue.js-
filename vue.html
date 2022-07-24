@@ -109,14 +109,19 @@
             } else {
                 getter = () => traverse(source)
             }
-            effect(
+            let oldValue, newValue;
+            const effectFn = effect(
                 getter,
                 {
+                    lazy: true,
                     schedular() {
-                        cb()
+                        newValue = effectFn();
+                        cb(newValue, oldValue);
+                        oldValue = newValue;
                     }
                 }
             )
+            oldValue = effectFn();
         }
 
         // 轮询该对象下面所有值
@@ -129,25 +134,21 @@
             return value;
         }
 
-        watch(() => { obj.foo }, () => {
-            console.log('数据变化了');
+        watch(() => obj.foo, (newVal, oldVal) => {
+            console.log(`数据变化了，旧的值：${oldVal}新的值：${newVal}`);
         })
         obj.foo++;
-        obj.foo++;
-        obj.foo++;
-        obj.bar++;
-        obj.bar++;
-        obj.bar++;
 
 
 
 
 
-        // 之前无法监听obj.foo是因为watch(obj.foo, cb); foo取值的时候activeEffect为空，依赖无法收集
-        // 传入一个getter，让obj.foo的取值行为发正在effect里面，即可收集依赖
+
+        // 使用lazy创建了一个懒执行的effect，在数据改动前调用得到旧值，数据改动后调用得到新值；
 
         // 思考：
-        // 如何获取到旧值与新值？
+        // 1.lazy是否必要？仅仅为了少执行一次？
+        // 2.vue.js中立即执行与回调执行时机的实现
 
     </script>
 </body>
