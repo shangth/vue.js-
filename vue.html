@@ -136,14 +136,12 @@
 
 
 
-        // effect(() => console.log(sumRes.value)); 依赖了计算属性
-        // 计算属性依赖了obj.foo  以及  obj.bar;
-
-        // 当obj.foo改变，会触发计算属性schedular的执行，这时，应该再去触发effect(() => console.log(sumRes.value))的执行，但是并没有，因为对计算属性的依赖没有收集，也没有触发
-        // 所以需要增加依赖计算属性时的依赖收集
+        // 通过对传入对象的key的遍历，收集依赖，有值改变时，执行cb；
+        // 但是如果传入的是watch(obj.foo, cb);
+        // 那么在watch里面并没有读取obj.foo的值，所以无法单独监听一个属性的改变
 
         // 思考：
-        // watch如何实现
+        // 如何只监听obj.foo的改变
 
     </script>
 </body>
