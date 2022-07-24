@@ -102,7 +102,7 @@
         }
 
 
-        function watch(source, cb, options) {
+        function watch(source, cb, options = {}) {
             let getter;
             if (typeof source === 'function') {
                 getter = source;
@@ -110,9 +110,14 @@
                 getter = () => traverse(source)
             }
             let oldValue, newValue;
+            let cleanup;
+            function onInvalidate(fn) {
+                cleanup = fn
+            }
             const job = () => {
                 newValue = effectFn();
-                cb(newValue, oldValue);
+                cleanup && cleanup();
+                cb(newValue, oldValue, onInvalidate);
                 oldValue = newValue;
             }
             const effectFn = effect(
@@ -147,26 +152,53 @@
             return value;
         }
 
-        watch(() => obj.foo, (newVal, oldVal) => {
-            console.log(`数据变化了，旧的值：${oldVal}新的值：${newVal}`);
-        }, {
-            immediate: true,
-            flush: 'post' // post:cb放入微队列  sync:cb同步执行
+        // 请求数据
+        let resData;
+
+        // 模拟请求
+        let count = 0;
+        function request() {
+            count++;
+            let resData = count;
+            return new Promise((res, rej) => {
+                setTimeout(() => {
+                    res(resData);
+                }, Math.random() * 1000)
+            })
+        }
+
+        watch(() => obj.foo, async (newVal, oldVal, onInvalidate) => {
+            // 不使用onInvalidate
+            res = await request();
+            console.log(res);
+            resData = res;
+
+
+            // 使用onInvalidate
+            // let expired = false;
+            // onInvalidate(() => {
+            //     expired = true;
+            // })
+            // res = await request();
+            // if (!expired) {
+            //     console.log(res);
+            //     resData = res;
+            // }
         })
         obj.foo++;
-        console.log(123)
+        obj.foo++;
 
 
 
 
 
 
-        // watch增加第三个参数options
-        // options.immediate控制是否立即执行watch.cb函数；
-        // options.flush控制cb函数的执行时机；
 
-        // 思考：
-        // 如何处理过期的副作用函数？
+
+
+        // watch回调为请求接口时，由于接口请求时间不一定，就无法保证后请求的后响应；
+        // 通过注册过期函数，cb再次执行时，使上次cb的expired过期，保证去执行后请求的回调；
+
 
     </script>
 </body>
