@@ -101,49 +101,37 @@
             effectFn.deps.length = 0;
         }
 
-        const jobQueue = new Set();
-        const p = Promise.resolve();
-        let isFlushing = false;
-        function flushing() {
-            if (isFlushing) return;
-            isFlushing = true;
-            p.then(() => {
-                jobQueue.forEach(job => job());
-            }).finally(() => {
-                isFlushing = false;
-            })
-        }
 
-        function computed(getter) {
-            let value;
-            let dirty = true;
-
-            const effectFn = effect(getter, {
-                lazy: true,
-                schedular() {
-                    dirty = true;
-                    trigger(obj, 'value');
-                }
-            });
-            const obj = {
-                get value() {
-                    if (dirty) {
-                        console.log('计算结果');
-                        value =  effectFn();
-                        dirty = false;
+        function watch(source, cb) {
+            effect(
+                () => traverse(source),
+                {
+                    schedular() {
+                        cb()
                     }
-                    track(obj, 'value');
-                    return value;
                 }
-            }
-            return obj;
+            )
         }
 
-        const sumRes = computed(() => obj.foo + obj.bar);
+        // 轮询该对象下面所有值
+        function traverse(value, seen = new Set()) {
+            if (typeof value !== 'object' || value === null || seen.has(value)) return
+            seen.add(value);
+            for (const k in value) {
+                traverse(value[k], seen);
+            }
+            return value;
+        }
 
-        effect(() => console.log(sumRes.value));
+        watch(obj, () => {
+            console.log('数据变化了');
+        })
         obj.foo++;
-        // console.log(bucket);
+        obj.foo++;
+        obj.foo++;
+        obj.bar++;
+        obj.bar++;
+        obj.bar++;
 
 
 
