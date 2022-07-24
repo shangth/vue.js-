@@ -103,8 +103,14 @@
 
 
         function watch(source, cb) {
+            let getter;
+            if (typeof source === 'function') {
+                getter = source;
+            } else {
+                getter = () => traverse(source)
+            }
             effect(
-                () => traverse(source),
+                getter,
                 {
                     schedular() {
                         cb()
@@ -123,7 +129,7 @@
             return value;
         }
 
-        watch(obj, () => {
+        watch(() => { obj.foo }, () => {
             console.log('数据变化了');
         })
         obj.foo++;
@@ -136,12 +142,12 @@
 
 
 
-        // 通过对传入对象的key的遍历，收集依赖，有值改变时，执行cb；
-        // 但是如果传入的是watch(obj.foo, cb);
-        // 那么在watch里面并没有读取obj.foo的值，所以无法单独监听一个属性的改变
+
+        // 之前无法监听obj.foo是因为watch(obj.foo, cb); foo取值的时候activeEffect为空，依赖无法收集
+        // 传入一个getter，让obj.foo的取值行为发正在effect里面，即可收集依赖
 
         // 思考：
-        // 如何只监听obj.foo的改变
+        // 如何获取到旧值与新值？
 
     </script>
 </body>
