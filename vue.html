@@ -102,7 +102,7 @@
         }
 
 
-        function watch(source, cb) {
+        function watch(source, cb, options) {
             let getter;
             if (typeof source === 'function') {
                 getter = source;
@@ -110,18 +110,31 @@
                 getter = () => traverse(source)
             }
             let oldValue, newValue;
+            const job = () => {
+                newValue = effectFn();
+                cb(newValue, oldValue);
+                oldValue = newValue;
+            }
             const effectFn = effect(
                 getter,
                 {
                     lazy: true,
                     schedular() {
-                        newValue = effectFn();
-                        cb(newValue, oldValue);
-                        oldValue = newValue;
+                        if (options.flush === 'post') {
+                            const p = Promise.resolve();
+                            p.then(job)
+                        } else {
+                            job();
+                        }
                     }
                 }
             )
-            oldValue = effectFn();
+
+            if (options.immediate) {
+                job();
+            } else {
+                oldValue = effectFn();
+            }
         }
 
         // 轮询该对象下面所有值
@@ -136,19 +149,24 @@
 
         watch(() => obj.foo, (newVal, oldVal) => {
             console.log(`数据变化了，旧的值：${oldVal}新的值：${newVal}`);
+        }, {
+            immediate: true,
+            flush: 'post' // post:cb放入微队列  sync:cb同步执行
         })
         obj.foo++;
+        console.log(123)
 
 
 
 
 
 
-        // 使用lazy创建了一个懒执行的effect，在数据改动前调用得到旧值，数据改动后调用得到新值；
+        // watch增加第三个参数options
+        // options.immediate控制是否立即执行watch.cb函数；
+        // options.flush控制cb函数的执行时机；
 
         // 思考：
-        // 1.lazy是否必要？仅仅为了少执行一次？
-        // 2.vue.js中立即执行与回调执行时机的实现
+        // 如何处理过期的副作用函数？
 
     </script>
 </body>
